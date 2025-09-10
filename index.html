@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nộp bài tập</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #f5f7fa;
+            --border-color: #dce1e6;
+            --text-color: #333;
+            --success-color: #28a745;
+            --error-color: #dc3545;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--secondary-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text-color);
+        }
+
+        .upload-container {
+            background-color: white;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+            font-size: 16px;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        #drop-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 40px 20px;
+            cursor: pointer;
+            transition: background-color 0.3s, border-color 0.3s;
+            position: relative;
+        }
+
+        #drop-zone.drag-over {
+            background-color: #e9f2fe;
+            border-color: var(--primary-color);
+        }
+
+        #drop-zone-text {
+            color: #777;
+        }
+        
+        #file-name {
+            margin-top: 10px;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+
+        .submit-btn:disabled {
+            background-color: #a0c7f3;
+            cursor: not-allowed;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            background-color: #357abd;
+        }
+
+        #status {
+            margin-top: 20px;
+            font-weight: 500;
+            min-height: 24px; /* Để không bị giật layout khi có thông báo */
+        }
+        .status-success {
+            color: var(--success-color);
+        }
+        .status-error {
+            color: var(--error-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="upload-container">
+        <h1>Nộp Bài Tập</h1>
+        <form id="upload-form">
+            <div class="form-group">
+                <label for="class-code">Chọn mã lớp</label>
+                <select id="class-code" name="class-code" required>
+                    <option value="" disabled selected>-- Chọn lớp của bạn --</option>
+                    <option value="IT1234">IT1234 - Lập trình Web</option>
+                    <option value="CS5678">CS5678 - Cấu trúc dữ liệu</option>
+                    <option value="MA9012">MA9012 - Toán cao cấp</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="session">Chọn buổi học</label>
+                <select id="session" name="session" required>
+                    <option value="" disabled selected>-- Chọn buổi học --</option>
+                    <option value="Buoi_01">Buổi 01</option>
+                    <option value="Buoi_02">Buổi 02</option>
+                    <option value="Buoi_03">Buổi 03</option>
+                    <option value="Buoi_04">Buổi 04</option>
+                    <option value="Buoi_05">Buổi 05</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="student-name">Họ và Tên</label>
+                <input type="text" id="student-name" name="student-name" placeholder="Ví dụ: Nguyễn Văn A" required>
+            </div>
+
+            <div class="form-group">
+                <label for="student-id">Mã số sinh viên</label>
+                <input type="text" id="student-id" name="student-id" placeholder="Ví dụ: 20123456" required>
+            </div>
+
+            <div class="form-group">
+                <label>Tải bài tập lên</label>
+                <div id="drop-zone">
+                    <input type="file" id="file-input" name="file" required>
+                    <span id="drop-zone-text">Kéo và thả file vào đây, hoặc nhấn để chọn file</span>
+                    <div id="file-name"></div>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submit-button">Nộp Bài</button>
+
+            <div id="status"></div>
+        </form>
+    </div>
+<!-- AKfycbyg5ksdRXDGiVmJKzaHJ3TTMFuI_w74BLlbImbZPWBAxi95x3t-cn34DGlM7cW5pG1m -->
+    <script>
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbyg5ksdRXDGiVmJKzaHJ3TTMFuI_w74BLlbImbZPWBAxi95x3t-cn34DGlM7cW5pG1m/exec'; // !!! QUAN TRỌNG: Sẽ lấy ở Phần 2
+        const form = document.getElementById('upload-form');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileNameDisplay = document.getElementById('file-name');
+        const dropZoneText = document.getElementById('drop-zone-text');
+        const statusDiv = document.getElementById('status');
+        const submitButton = document.getElementById('submit-button');
+        let uploadedFile = null;
+
+        // Xử lý sự kiện kéo-thả
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        // Xử lý sự kiện nhấn vào để chọn file
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                handleFile(fileInput.files[0]);
+            }
+        });
+        
+        function handleFile(file) {
+            uploadedFile = file;
+            fileNameDisplay.textContent = `File đã chọn: ${file.name}`;
+            dropZoneText.style.display = 'none'; // Ẩn văn bản hướng dẫn
+        }
+
+        // Xử lý sự kiện submit form
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            if (!uploadedFile) {
+                alert("Vui lòng chọn một file để nộp!");
+                return;
+            }
+
+            // Vô hiệu hóa nút bấm và hiển thị trạng thái
+            submitButton.disabled = true;
+            submitButton.textContent = 'Đang tải lên...';
+            statusDiv.className = '';
+            statusDiv.textContent = 'Vui lòng chờ...';
+
+            const reader = new FileReader();
+            reader.readAsDataURL(uploadedFile);
+            reader.onloadend = () => {
+                const fileData = reader.result.split(',')[1];
+                
+                const payload = {
+                    classCode: form.elements['class-code'].value,
+                    session: form.elements['session'].value,
+                    studentName: form.elements['student-name'].value,
+                    studentId: form.elements['student-id'].value,
+                    fileName: uploadedFile.name,
+                    mimeType: uploadedFile.type,
+                    fileData: fileData
+                };
+
+                fetch(scriptURL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(response => {
+                    if (response.result === 'success') {
+                        statusDiv.className = 'status-success';
+                        statusDiv.textContent = 'Nộp bài thành công! Cảm ơn bạn.';
+                        form.reset(); // Xóa các trường đã nhập
+                        fileNameDisplay.textContent = '';
+                        dropZoneText.style.display = 'block';
+                        uploadedFile = null;
+                    } else {
+                        throw new Error(response.message || 'Đã có lỗi xảy ra.');
+                    }
+                })
+                .catch(error => {
+                    statusDiv.className = 'status-error';
+                    statusDiv.textContent = `Lỗi: ${error.message}`;
+                    console.error('Error!', error.message);
+                })
+                .finally(() => {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Nộp Bài';
+                });
+            };
+        });
+    </script>
+</body>
+</html>
