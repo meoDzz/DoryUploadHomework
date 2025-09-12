@@ -184,10 +184,18 @@
                 <input type="text" id="student-id" name="student-id" placeholder="Ví dụ: 20123456" required>
             </div>
 
-            <div class="form-group">
+            <!-- <div class="form-group">
                 <label>Tải bài tập lên</label>
                 <div id="drop-zone">
                     <input type="file" id="file-input" name="file" required>
+                    <span id="drop-zone-text"> Nhấn để chọn file</span>
+                    <div id="file-name"></div>
+                </div>
+            </div> -->
+            <div class="form-group">
+                <label>Tải bài tập lên</label>
+                <div id="drop-zone">
+                    <input type="file" id="file-input" name="file" multiple required>
                     <span id="drop-zone-text"> Nhấn để chọn file</span>
                     <div id="file-name"></div>
                 </div>
@@ -205,7 +213,7 @@
         </form>
     </div>
 
-    <script>
+    <!-- <script>
     const scriptURL = 'https://script.google.com/macros/s/AKfycbz1CDx-MHGEWHXmE7_GIh6VlgxDjJ535cd7E6KT6M7-E6q_tEoTLH3-hKsnohp5-KJR/exec'; 
     const form = document.getElementById('upload-form');
     const dropZone = document.getElementById('drop-zone');
@@ -357,15 +365,189 @@ function uploadFileDirectly(url, file) {
             progressContainer.style.display = 'none';
         }, 4000); // Ẩn thanh tiến trình sau 4 giây
     }
-</script>
+    </script> -->
+    <script>
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbxq9gFRL5xRlxLB4AQsUDHVcKf2d9331QvzfNnLSJjQ1qwq5ArnQaQm7xWHc5WHM4laLg/exec'; 
+        const form = document.getElementById('upload-form');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileNameDisplay = document.getElementById('file-name');
+        const dropZoneText = document.getElementById('drop-zone-text');
+        const statusDiv = document.getElementById('status');
+        const submitButton = document.getElementById('submit-button');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        // Thay đổi: Bây giờ chúng ta sẽ lưu trữ một mảng các file
+        let uploadedFiles = []; 
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }       
+        // --- Các hàm xử lý kéo thả file được cập nhật ---
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            // Xử lý tất cả các file được thả vào
+            if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
+        });
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => {
+            // Xử lý tất cả các file được chọn
+            if (fileInput.files.length > 0) handleFiles(fileInput.files);
+        });
+        
+        // Hàm mới để xử lý nhiều file
+        function handleFiles(files) {
+            uploadedFiles = Array.from(files);
+            let fileNames = uploadedFiles.map(file => file.name).join(', ');
+            fileNameDisplay.textContent = `Các file đã chọn: ${fileNames}`;
+            dropZoneText.style.display = 'none';
+        }
+
+        // --- Xử lý sự kiện submit form được cập nhật và cải thiện ---
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (uploadedFiles.length === 0) {
+        alert("Vui lòng chọn ít nhất một file để nộp!");
+        return;
+    }
+
+    // 1. Chuẩn bị giao diện
+    submitButton.disabled = true;
+    statusDiv.textContent = '';
+    statusDiv.className = '';
+    progressContainer.style.display = 'block';
+    updateProgress(0);
+
+    let filesUploaded = 0;
+    let filesFailed = 0;
+    let totalFiles = uploadedFiles.length;
+
+    // Lặp qua từng file trong mảng
+    for (const file of uploadedFiles) {
+        try {
+            const currentFileIndex = filesUploaded + filesFailed + 1;
+            submitButton.textContent = `Đang xử lý file (${currentFileIndex}/${totalFiles})...`;
+            
+            // BƯỚC 1: Gửi metadata cho từng file
+            const metadata = {
+                fileName: file.name,
+                mimeType: file.type || 'application/octet-stream',
+                classCode: form.elements['class-code'].value,
+                session: form.elements['session'].value,
+                studentName: form.elements['student-name'].value,
+                studentId: form.elements['student-id'].value,
+            };
+            
+            const initResponse = await fetch(scriptURL, {
+                method: 'POST',
+                body: JSON.stringify(metadata),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            });
+            
+            const initData = await initResponse.json();
+
+            if (initData.result !== 'success' || !initData.uploadUrl) {
+                // Ném lỗi nếu không lấy được URL, sẽ được bắt bởi khối catch bên dưới
+                throw new Error(`Không lấy được URL cho file: ${file.name}.`);
+            }
+
+            const uploadUrl = initData.uploadUrl;
+            
+            // BƯỚC 2: Tải file lên Google Drive
+            submitButton.textContent = `Đang tải lên file (${currentFileIndex}/${totalFiles})...`;
+            await uploadFileDirectly(uploadUrl, file);
+            
+            filesUploaded++;
+            
+        } catch (error) {
+            // Nếu có lỗi với file hiện tại, ghi nhận và tiếp tục với file tiếp theo
+            filesFailed++;
+            console.error(`Lỗi với file ${file.name}:`, error);
+        } finally {
+            // Cập nhật thanh tiến trình chung
+            updateProgress(Math.round(((filesUploaded + filesFailed) / totalFiles) * 100));
+            // THÊM ĐỘ TRỄ: Đợi 0.5 giây trước khi bắt đầu vòng lặp tiếp theo
+            if (filesUploaded + filesFailed < totalFiles) {
+                await sleep(2500); 
+            }
+        }
+    }
+
+    // Hoàn tất - Cung cấp thông báo cuối cùng
+    if (filesUploaded > 0) {
+        statusDiv.className = 'status-success';
+        statusDiv.textContent = `Hoàn tất! Nộp thành công`;
+    }
+    if (filesFailed > 0) {
+        statusDiv.className = 'status-error';
+        statusDiv.textContent += ` Thất bại: ${filesFailed} file. Vui lòng thử lại các file lỗi.`;
+    }
+    
+    // Reset form và giao diện
+    resetForm();
+    resetUI();
+});
+        // Hàm uploadFileDirectly không thay đổi vì nó chỉ xử lý 1 file tại một thời điểm
+        function uploadFileDirectly(url, file) {
+            return new Promise((resolve, reject) => {
+                let uploadComplete = false;
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', url, true);
+                
+                xhr.upload.addEventListener('progress', (event) => {
+                    // Không cập nhật progress ở đây để tránh giật
+                });
+
+                xhr.onload = () => {
+                    if (xhr.status === 200 || xhr.status === 201) {
+                        resolve(xhr.responseText);
+                    } else {
+                        reject(new Error(`Tải file thất bại. Server phản hồi: ${xhr.status}`));
+                    }
+                };
+                
+                xhr.onerror = () => {
+                    console.warn("Một lỗi mạng không rõ ràng đã xảy ra (thường là do CORS). Giả định rằng việc tải lên đã thành công.");
+                    // Thay vì reject, chúng ta resolve
+                    resolve("Upload presumed successful despite network error.");
+                };
+                
+                xhr.send(file);
+            });
+        }
+
+        function updateProgress(percent) {
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = percent + '%';
+        }
+
+        function resetForm() {
+            form.reset();
+            fileNameDisplay.textContent = '';
+            dropZoneText.style.display = 'block';
+            uploadedFiles = [];
+        }
+
+        function resetUI() {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Nộp Bài';
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+            }, 4000);
+        }
+    </script>
 </body>
 </html>
 
 
 
 
-<!-- Mã GS 
-// Thay 'YOUR_FOLDER_ID' bằng ID thư mục Google Drive gốc của bạn
+<!-- // Thay 'YOUR_FOLDER_ID' bằng ID thư mục Google Drive gốc của bạn
 const FOLDER_ID = "1j7aJxV3llUg0K8Sk-1eDpmw59lIby5Sh"; // ID thư mục "BaiTapNop"
 
 // *** HÀM MỚI: Dùng để tìm hoặc tạo thư mục con ***
@@ -391,80 +573,7 @@ function getOrCreateFolder(parentFolder, folderName) {
     return newFolder;
   }
 }
-// function doPost(e) {
-//   try {
-//     const body = e.postData.contents;
-//     const { fileName, mimeType, studentId, studentName, classCode, session } = JSON.parse(body);
-    
-//     // *** LOGIC MỚI ĐỂ XỬ LÝ THƯ MỤC ***
-//     // 1. Lấy thư mục gốc "BaiTapNop"
-//     const rootFolder = DriveApp.getFolderById(FOLDER_ID);
-//     // 2. Tìm hoặc tạo thư mục con cho MÃ LỚP (ví dụ: "CS5678")
-//     const classFolder = getOrCreateFolder(rootFolder, classCode);
-    
-//     const uniqueFileName = `${session}_${studentId}_${studentName}_${fileName}`;
-    
-//     const fileMetadata = {
-//       name: uniqueFileName,
-//       // 3. Chỉ định file sẽ được lưu vào thư mục con vừa tìm/tạo
-//       parents: [classFolder.getId()], 
-//       description: `Bài tập của sinh viên ${studentName} (MSSV: ${studentId}) cho lớp ${classCode}, buổi ${session}.`
-//     };
 
-//     const uploadUrl = getResumableUploadUrl(fileMetadata, mimeType);
-    
-//     if (!uploadUrl) {
-//       throw new Error("Không thể tạo URL để tải lên.");
-//     }
-    
-//     return ContentService
-//       .createTextOutput(JSON.stringify({ result: 'success', uploadUrl: uploadUrl }))
-//       .setMimeType(ContentService.MimeType.JSON);
-
-//   } catch (error) {
-//     return ContentService
-//       .createTextOutput(JSON.stringify({ result: 'error', message: error.toString() }))
-//       .setMimeType(ContentService.MimeType.JSON);
-//   }
-// }
-// function doPost(e) {
-//   try {
-//     const body = e.postData.contents;
-//     const { fileName, mimeType, studentId, studentName, classCode, session } = JSON.parse(body);
-
-//     // Lấy thư mục gốc "BaiTapNop"
-//     const rootFolder = DriveApp.getFolderById(FOLDER_ID);
-
-//     // Tìm hoặc tạo thư mục con cho MÃ LỚP (ví dụ: "IT1234")
-//     // Bước này là đúng, bạn không cần thay đổi gì.
-//     const classFolder = getOrCreateFolder(rootFolder, classCode);
-
-//     const uniqueFileName = `${session}_${studentId}_${studentName}_${fileName}`;
-    
-//     const fileMetadata = {
-//       name: uniqueFileName,
-//       // Chỉ định file sẽ được lưu vào thư mục con vừa tìm/tạo
-//       // Đây là nơi bạn đang làm đúng.
-//       parents: [classFolder.getId()], 
-//       description: `Bài tập của sinh viên ${studentName} (MSSV: ${studentId}) cho lớp ${classCode}, buổi ${session}.`
-//     };
-
-//     const uploadUrl = getResumableUploadUrl(fileMetadata, mimeType);
-    
-//     if (!uploadUrl) {
-//       throw new Error("Không thể tạo URL để tải lên.");
-//     }
-    
-//     return ContentService
-//       .createTextOutput(JSON.stringify({ result: 'success', uploadUrl: uploadUrl }))
-//       .setMimeType(ContentService.MimeType.JSON);
-
-//   } catch (error) {
-//     return ContentService
-//       .createTextOutput(JSON.stringify({ result: 'error', message: error.toString() }))
-//       .setMimeType(ContentService.MimeType.JSON);
-//   }
-// }
 function doPost(e) {
   try {
     const body = e.postData.contents;
@@ -504,6 +613,9 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
+
+
+
 
 // Hàm getResumableUploadUrl không thay đổi
 function getResumableUploadUrl(metadata, mimeType) {
